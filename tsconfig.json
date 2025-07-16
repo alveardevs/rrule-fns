@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "module": "CommonJS",
-    "declaration": true,
     "outDir": "dist",
-    "strict": true,
+    "rootDir": "src",
+    "declaration": true,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "target": "ES2020",
+    "strict": true
   },
-  "include": ["lib"]
+  "include": ["src"]
 }

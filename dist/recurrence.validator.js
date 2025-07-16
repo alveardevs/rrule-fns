@@ -1,13 +1,10 @@
-"use strict";
 // =================== VALIDATION DECORATOR ===================
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.IsValidRecurrencePattern = IsValidRecurrencePattern;
-const class_validator_1 = require("class-validator");
-const recurrence_type_1 = require("./recurrence.type");
-const recurrence_utils_1 = require("./recurrence.utils");
-function IsValidRecurrencePattern(validationOptions) {
+import { registerDecorator } from 'class-validator';
+import { RRuleFrequency, WeekDay, } from './recurrence.type';
+import { RRuleParser } from './recurrence.utils';
+export function IsValidRecurrencePattern(validationOptions) {
     return function (object, propertyName) {
-        (0, class_validator_1.registerDecorator)({
+        registerDecorator({
             name: 'IsValidRecurrencePattern',
             target: object.constructor,
             propertyName: propertyName,
@@ -19,24 +16,24 @@ function IsValidRecurrencePattern(validationOptions) {
                     if (typeof value === 'string') {
                         try {
                             // Try to parse as RRULE
-                            recurrence_utils_1.RRuleParser.stringToRRule(value);
+                            RRuleParser.stringToRRule(value);
                             return true;
                         }
-                        catch (_a) {
+                        catch {
                             return false;
                         }
                     }
                     if (typeof value === 'object') {
                         // Validate RecurrencePattern object
                         const pattern = value;
-                        if (!Object.values(recurrence_type_1.RRuleFrequency).includes(pattern.frequency)) {
+                        if (!Object.values(RRuleFrequency).includes(pattern.frequency)) {
                             return false;
                         }
                         if (pattern.interval && (pattern.interval < 1 || pattern.interval > 999)) {
                             return false;
                         }
                         if (pattern.byWeekDay) {
-                            const validDays = Object.values(recurrence_type_1.WeekDay);
+                            const validDays = Object.values(WeekDay);
                             if (!pattern.byWeekDay.every((day) => validDays.includes(day))) {
                                 return false;
                             }

@@ -1,15 +1,12 @@
-"use strict";
 // =================== TYPES & VALIDATION ===================
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.WeekDay = exports.RRuleFrequency = void 0;
-var RRuleFrequency;
+export var RRuleFrequency;
 (function (RRuleFrequency) {
     RRuleFrequency["DAILY"] = "DAILY";
     RRuleFrequency["WEEKLY"] = "WEEKLY";
     RRuleFrequency["MONTHLY"] = "MONTHLY";
     RRuleFrequency["YEARLY"] = "YEARLY";
-})(RRuleFrequency || (exports.RRuleFrequency = RRuleFrequency = {}));
-var WeekDay;
+})(RRuleFrequency || (RRuleFrequency = {}));
+export var WeekDay;
 (function (WeekDay) {
     WeekDay["MO"] = "MO";
     WeekDay["TU"] = "TU";
@@ -18,4 +15,4 @@ var WeekDay;
     WeekDay["FR"] = "FR";
     WeekDay["SA"] = "SA";
     WeekDay["SU"] = "SU";
-})(WeekDay || (exports.WeekDay = WeekDay = {}));
+})(WeekDay || (WeekDay = {}));

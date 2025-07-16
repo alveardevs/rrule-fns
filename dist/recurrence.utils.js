@@ -1,19 +1,10 @@
-"use strict";
 // =================== CORE TYPES ===================
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.RRuleParser = void 0;
-exports.generateRecurrenceOccurrences = generateRecurrenceOccurrences;
-exports.generateRecurrenceDates = generateRecurrenceDates;
-exports.getUpcomingOccurrences = getUpcomingOccurrences;
-exports.dateMatchesPattern = dateMatchesPattern;
-exports.describeRRule = describeRRule;
-exports.isValidRRule = isValidRRule;
-const recurrence_type_1 = require("./recurrence.type");
-class RRuleParser {
+import { RRuleFrequency, WeekDay } from "./recurrence.type";
+export class RRuleParser {
     static stringToRRule(rrule) {
         const parts = rrule.split(';');
         const pattern = {
-            frequency: recurrence_type_1.RRuleFrequency.DAILY,
+            frequency: RRuleFrequency.DAILY,
             interval: 1
         };
         parts.forEach((part) => {
@@ -46,12 +37,11 @@ class RRuleParser {
         return pattern;
     }
     static toString(pattern) {
-        var _a;
         let rrule = `FREQ=${pattern.frequency}`;
         if (pattern.interval && pattern.interval > 1) {
             rrule += `;INTERVAL=${pattern.interval}`;
         }
-        if ((_a = pattern.byWeekDay) === null || _a === void 0 ? void 0 : _a.length) {
+        if (pattern.byWeekDay?.length) {
             rrule += `;BYDAY=${pattern.byWeekDay.join(',')}`;
         }
         if (pattern.byMonthDay) {
@@ -118,7 +108,7 @@ class RRuleParser {
             the: { en: 'the', es: 'el' },
             month: { en: 'month', es: 'mes' },
         };
-        const t = (key) => { var _a; return ((_a = translations[key]) === null || _a === void 0 ? void 0 : _a[lang]) || key; };
+        const t = (key) => translations[key]?.[lang] || key;
         // Helper function to format day names
         const formatDayName = (day) => {
             // Handle both full names and abbreviations
@@ -172,7 +162,7 @@ class RRuleParser {
         };
         let description = '';
         switch (frequency) {
-            case recurrence_type_1.RRuleFrequency.DAILY:
+            case RRuleFrequency.DAILY:
                 if (interval === 1) {
                     description = t('daily');
                 }
@@ -182,8 +172,8 @@ class RRuleParser {
                         `${t('every')} ${interval} ${t('days')}`;
                 }
                 break;
-            case recurrence_type_1.RRuleFrequency.WEEKLY:
-                if (byWeekDay === null || byWeekDay === void 0 ? void 0 : byWeekDay.length) {
+            case RRuleFrequency.WEEKLY:
+                if (byWeekDay?.length) {
                     // Check for special cases
                     if (isWeekend(byWeekDay)) {
                         description = interval === 1 ?
@@ -215,8 +205,8 @@ class RRuleParser {
                         `${t('every')} ${interval} ${t('weeks')}`;
                 }
                 break;
-            case recurrence_type_1.RRuleFrequency.MONTHLY:
-                if ((byWeekDay === null || byWeekDay === void 0 ? void 0 : byWeekDay.length) && bySetPos) {
+            case RRuleFrequency.MONTHLY:
+                if (byWeekDay?.length && bySetPos) {
                     const pos = getOrdinalPosition(bySetPos);
                     const dayName = formatDayName(byWeekDay[0]);
                     if (interval === 1) {
@@ -249,7 +239,7 @@ class RRuleParser {
                         `${t('every')} ${interval} ${t('months')}`;
                 }
                 break;
-            case recurrence_type_1.RRuleFrequency.YEARLY:
+            case RRuleFrequency.YEARLY:
                 description = interval === 1 ?
                     t('yearly') :
                     `${t('every')} ${interval} ${t('years')}`;
@@ -327,7 +317,6 @@ class RRuleParser {
     }
     // =================== MAIN GENERATOR FUNCTION ===================
     static generateOccurrences(startDate, rrule, maxCount, endDate) {
-        var _a, _b;
         const parsed = this.stringToRRule(rrule);
         if (!parsed.interval)
             parsed.interval = 1;
@@ -346,13 +335,13 @@ class RRuleParser {
         while (count < limit && (!actualEndDate || current <= actualEndDate)) {
             let nextOccurrence = null;
             switch (parsed.frequency) {
-                case recurrence_type_1.RRuleFrequency.DAILY:
+                case RRuleFrequency.DAILY:
                     nextOccurrence = count === 0 ? new Date(current) : this.addDays(current, parsed.interval);
                     if (actualEndDate && nextOccurrence > actualEndDate)
                         eof = true;
                     break;
-                case recurrence_type_1.RRuleFrequency.WEEKLY:
-                    if ((_a = parsed.byWeekDay) === null || _a === void 0 ? void 0 : _a.length) {
+                case RRuleFrequency.WEEKLY:
+                    if (parsed.byWeekDay?.length) {
                         // Se repite varios días a la semana
                         nextOccurrence = this.getNextWeeklyOccurrence(current, parsed.byWeekDay, parsed.interval, count == 0);
                     }
@@ -362,8 +351,8 @@ class RRuleParser {
                             count === 0 ? new Date(current) : this.addWeeks(current, parsed.interval);
                     }
                     break;
-                case recurrence_type_1.RRuleFrequency.MONTHLY:
-                    if (((_b = parsed.byWeekDay) === null || _b === void 0 ? void 0 : _b.length) && parsed.bySetPos) {
+                case RRuleFrequency.MONTHLY:
+                    if (parsed.byWeekDay?.length && parsed.bySetPos) {
                         // e.g., "First Friday of every month"
                         nextOccurrence = this.getNextMonthlyWeekdayOccurrence(current, parsed.byWeekDay[0], parsed.bySetPos, parsed.interval, count === 0);
                     }
@@ -379,7 +368,7 @@ class RRuleParser {
                     if (actualEndDate && nextOccurrence && (nextOccurrence > actualEndDate))
                         eof = true; // PATCH para arreglar el UNTIL del monthly (Puede que funcione para todos los casos)
                     break;
-                case recurrence_type_1.RRuleFrequency.YEARLY:
+                case RRuleFrequency.YEARLY:
                     nextOccurrence =
                         count === 0 ? new Date(current) : this.addYears(current, parsed.interval);
                     break;
@@ -456,15 +445,14 @@ class RRuleParser {
         return targetDate;
     }
 }
-exports.RRuleParser = RRuleParser;
 RRuleParser.WEEKDAY_MAP = {
-    [recurrence_type_1.WeekDay.SU]: 0,
-    [recurrence_type_1.WeekDay.MO]: 1,
-    [recurrence_type_1.WeekDay.TU]: 2,
-    [recurrence_type_1.WeekDay.WE]: 3,
-    [recurrence_type_1.WeekDay.TH]: 4,
-    [recurrence_type_1.WeekDay.FR]: 5,
-    [recurrence_type_1.WeekDay.SA]: 6,
+    [WeekDay.SU]: 0,
+    [WeekDay.MO]: 1,
+    [WeekDay.TU]: 2,
+    [WeekDay.WE]: 3,
+    [WeekDay.TH]: 4,
+    [WeekDay.FR]: 5,
+    [WeekDay.SA]: 6,
 };
 // =================== CONVENIENCE FUNCTIONS ===================
 /**
@@ -475,7 +463,7 @@ RRuleParser.WEEKDAY_MAP = {
  * @param toDate Optional end date
  * @returns Array of Date objects
  */
-function generateRecurrenceOccurrences(fromDate, rrule, count, toDate) {
+export function generateRecurrenceOccurrences(fromDate, rrule, count, toDate) {
     const startDate = typeof fromDate === 'string' ? new Date(fromDate) : fromDate;
     const endDate = typeof toDate === 'string' ? new Date(toDate) : toDate;
     return RRuleParser.generateOccurrences(startDate, rrule, count, endDate);
@@ -488,19 +476,19 @@ function generateRecurrenceOccurrences(fromDate, rrule, count, toDate) {
  * @param toDate Optional end date
  * @returns Array of ISO date strings (YYYY-MM-DD format)
  */
-function generateRecurrenceDates(fromDate, rrule, count, toDate) {
+export function generateRecurrenceDates(fromDate, rrule, count, toDate) {
     return generateRecurrenceOccurrences(fromDate, rrule, count, toDate).map((date) => date.toISOString().split('T')[0]);
 }
 /**
  * Get the next N occurrences from today
  */
-function getUpcomingOccurrences(rrule, count = 5, startDate = new Date()) {
+export function getUpcomingOccurrences(rrule, count = 5, startDate = new Date()) {
     return generateRecurrenceOccurrences(startDate, rrule, count);
 }
 /**
  * Check if a date matches a recurrence pattern
  */
-function dateMatchesPattern(date, startDate, rrule) {
+export function dateMatchesPattern(date, startDate, rrule) {
     const targetDate = typeof date === 'string' ? new Date(date) : date;
     const occurrences = generateRecurrenceOccurrences(startDate, rrule, 100);
     return occurrences.some((occurrence) => occurrence.toDateString() === targetDate.toDateString());
@@ -508,19 +496,19 @@ function dateMatchesPattern(date, startDate, rrule) {
 /**
  * Get human-readable description of recurrence pattern
  */
-function describeRRule(rrule) {
+export function describeRRule(rrule) {
     const parsed = RRuleParser.stringToRRule(rrule);
     return RRuleParser.describe(parsed);
 }
 /**
  * Validate RRULE string
  */
-function isValidRRule(rrule) {
+export function isValidRRule(rrule) {
     try {
         RRuleParser.stringToRRule(rrule);
         return true;
     }
-    catch (_a) {
+    catch {
         return false;
     }
 }

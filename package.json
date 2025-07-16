@@ -1,18 +1,23 @@
 {
   "name": "@byalvear/rrule-fns",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
   "scripts": {
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["rrule", "recurrence", "date", "typescript"],
+  "author": "rckmanuel@byalvear.com",
   "license": "ISC",
+  "description": "A lightweight recurrence rule parser and generator for JavaScript/TypeScript",
   "directories": {
-    "lib": "lib"
+    "src": "src"
   },
-  "description": "",
   "devDependencies": {
     "typescript": "^5.8.3"
   },
