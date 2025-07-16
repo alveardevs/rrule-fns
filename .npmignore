@@ -1,0 +1,11 @@
+# Ignore source files
+lib/
+*.ts
+*.spec.ts
+readme-usage.ts
+tsconfig.json
+
+# Ignore project clutter
+node_modules/
+*.log
+.DS_Store

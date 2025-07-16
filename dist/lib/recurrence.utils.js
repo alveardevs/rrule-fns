@@ -1,0 +1,526 @@
+"use strict";
+// =================== CORE TYPES ===================
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.RRuleParser = void 0;
+exports.generateRecurrenceOccurrences = generateRecurrenceOccurrences;
+exports.generateRecurrenceDates = generateRecurrenceDates;
+exports.getUpcomingOccurrences = getUpcomingOccurrences;
+exports.dateMatchesPattern = dateMatchesPattern;
+exports.describeRRule = describeRRule;
+exports.isValidRRule = isValidRRule;
+const recurrence_type_1 = require("./recurrence.type");
+class RRuleParser {
+    static stringToRRule(rrule) {
+        const parts = rrule.split(';');
+        const pattern = {
+            frequency: recurrence_type_1.RRuleFrequency.DAILY,
+            interval: 1
+        };
+        parts.forEach((part) => {
+            const [key, value] = part.split('=');
+            switch (key) {
+                case 'FREQ':
+                    pattern.frequency = value;
+                    break;
+                case 'INTERVAL':
+                    pattern.interval = parseInt(value);
+                    break;
+                case 'BYDAY':
+                    pattern.byWeekDay = value.split(',');
+                    break;
+                case 'BYMONTHDAY':
+                    pattern.byMonthDay = parseInt(value);
+                    break;
+                case 'BYSETPOS':
+                    pattern.bySetPos = parseInt(value);
+                    break;
+                case 'COUNT':
+                    pattern.count = parseInt(value);
+                    break;
+                case 'UNTIL':
+                    // Convert back to ISO format
+                    pattern.until = new Date(value.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'));
+                    break;
+            }
+        });
+        return pattern;
+    }
+    static toString(pattern) {
+        var _a;
+        let rrule = `FREQ=${pattern.frequency}`;
+        if (pattern.interval && pattern.interval > 1) {
+            rrule += `;INTERVAL=${pattern.interval}`;
+        }
+        if ((_a = pattern.byWeekDay) === null || _a === void 0 ? void 0 : _a.length) {
+            rrule += `;BYDAY=${pattern.byWeekDay.join(',')}`;
+        }
+        if (pattern.byMonthDay) {
+            rrule += `;BYMONTHDAY=${pattern.byMonthDay}`;
+        }
+        if (pattern.bySetPos) {
+            rrule += `;BYSETPOS=${pattern.bySetPos}`;
+        }
+        if (pattern.count) {
+            rrule += `;COUNT=${pattern.count}`;
+        }
+        if (pattern.until) {
+            const until = pattern.until.toISOString().replace(/[-:]/g, '').replace('.000Z', 'Z');
+            rrule += `;UNTIL=${until}`;
+        }
+        return rrule;
+    }
+    static describe(pattern, options = {}) {
+        const { lang = 'es' } = options;
+        const { frequency, interval = 1, byWeekDay, byMonthDay, count, until, bySetPos } = pattern;
+        const translations = {
+            // Days of the week (full names)
+            monday: { en: 'Monday', es: 'lunes' },
+            tuesday: { en: 'Tuesday', es: 'martes' },
+            wednesday: { en: 'Wednesday', es: 'miércoles' },
+            thursday: { en: 'Thursday', es: 'jueves' },
+            friday: { en: 'Friday', es: 'viernes' },
+            saturday: { en: 'Saturday', es: 'sábado' },
+            sunday: { en: 'Sunday', es: 'domingo' },
+            // Days of the week (abbreviated)
+            mo: { en: 'Monday', es: 'lunes' },
+            tu: { en: 'Tuesday', es: 'martes' },
+            we: { en: 'Wednesday', es: 'miércoles' },
+            th: { en: 'Thursday', es: 'jueves' },
+            fr: { en: 'Friday', es: 'viernes' },
+            sa: { en: 'Saturday', es: 'sábado' },
+            su: { en: 'Sunday', es: 'domingo' },
+            // Frequency terms
+            daily: { en: 'Daily', es: 'Diariamente' },
+            weekly: { en: 'Weekly', es: 'Semanalmente' },
+            monthly: { en: 'Monthly', es: 'Mensualmente' },
+            yearly: { en: 'Yearly', es: 'Anualmente' },
+            // Common phrases
+            every: { en: 'Every', es: 'Cada' },
+            days: { en: 'days', es: 'días' },
+            weeks: { en: 'weeks', es: 'semanas' },
+            months: { en: 'months', es: 'meses' },
+            years: { en: 'years', es: 'años' },
+            on: { en: 'on', es: 'los' },
+            and: { en: 'and', es: 'y' },
+            weekend: { en: 'weekend', es: 'fin de semana' },
+            weekday: { en: 'weekday', es: 'día laboral' },
+            // Ordinals
+            first: { en: 'first', es: 'primer' },
+            second: { en: 'second', es: 'segundo' },
+            third: { en: 'third', es: 'tercer' },
+            fourth: { en: 'fourth', es: 'cuarto' },
+            last: { en: 'last', es: 'último' },
+            // Time expressions
+            times: { en: 'times', es: 'veces' },
+            until: { en: 'until', es: 'hasta' },
+            day: { en: 'day', es: 'día' },
+            of: { en: 'of', es: 'de' },
+            the: { en: 'the', es: 'el' },
+            month: { en: 'month', es: 'mes' },
+        };
+        const t = (key) => { var _a; return ((_a = translations[key]) === null || _a === void 0 ? void 0 : _a[lang]) || key; };
+        // Helper function to format day names
+        const formatDayName = (day) => {
+            // Handle both full names and abbreviations
+            const dayKey = day.toLowerCase();
+            return t(dayKey);
+        };
+        // Helper function to format day list
+        const formatDayList = (days) => {
+            if (days.length === 1)
+                return formatDayName(days[0]);
+            if (days.length === 2)
+                return `${formatDayName(days[0])} ${t('and')} ${formatDayName(days[1])}`;
+            const lastDay = formatDayName(days[days.length - 1]);
+            const otherDays = days.slice(0, -1).map(formatDayName).join(', ');
+            return `${otherDays} ${t('and')} ${lastDay}`;
+        };
+        // Helper function to check if days represent weekend
+        const isWeekend = (days) => {
+            const weekendDays = ['saturday', 'sunday', 'sa', 'su'];
+            return days.length === 2 &&
+                days.every(day => weekendDays.includes(day.toLowerCase()));
+        };
+        // Helper function to check if days represent weekdays
+        const isWeekdays = (days) => {
+            const weekdaysList = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'mo', 'tu', 'we', 'th', 'fr'];
+            return days.length === 5 &&
+                days.every(day => weekdaysList.includes(day.toLowerCase()));
+        };
+        // Helper function to get ordinal position
+        const getOrdinalPosition = (pos) => {
+            switch (pos) {
+                case -1: return t('last');
+                case 1: return t('first');
+                case 2: return t('second');
+                case 3: return t('third');
+                case 4: return t('fourth');
+                default: return `${pos}${lang === 'en' ? 'th' : 'º'}`;
+            }
+        };
+        // Helper function to format month day with ordinal
+        const formatMonthDay = (day) => {
+            if (lang === 'en') {
+                const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
+                    day === 2 || day === 22 ? 'nd' :
+                        day === 3 || day === 23 ? 'rd' : 'th';
+                return `${day}${suffix}`;
+            }
+            else {
+                return `${day}`;
+            }
+        };
+        let description = '';
+        switch (frequency) {
+            case recurrence_type_1.RRuleFrequency.DAILY:
+                if (interval === 1) {
+                    description = t('daily');
+                }
+                else {
+                    description = lang === 'en' ?
+                        `${t('every')} ${interval} ${t('days')}` :
+                        `${t('every')} ${interval} ${t('days')}`;
+                }
+                break;
+            case recurrence_type_1.RRuleFrequency.WEEKLY:
+                if (byWeekDay === null || byWeekDay === void 0 ? void 0 : byWeekDay.length) {
+                    // Check for special cases
+                    if (isWeekend(byWeekDay)) {
+                        description = interval === 1 ?
+                            `${t('every')} ${t('weekend')}` :
+                            `${t('every')} ${interval} ${t('weeks')} ${t('on')} ${t('weekend')}`;
+                    }
+                    else if (isWeekdays(byWeekDay)) {
+                        description = interval === 1 ?
+                            `${t('every')} ${t('weekday')}` :
+                            `${t('every')} ${interval} ${t('weeks')} ${t('on')} ${t('weekday')}`;
+                    }
+                    else {
+                        const dayList = formatDayList(byWeekDay);
+                        if (interval === 1) {
+                            description = lang === 'en' ?
+                                `${t('every')} ${dayList}` :
+                                `${t('every')} ${dayList}`;
+                        }
+                        else {
+                            description = lang === 'en' ?
+                                `${t('every')} ${interval} ${t('weeks')} ${t('on')} ${dayList}` :
+                                `${t('every')} ${interval} ${t('weeks')} ${t('on')} ${dayList}`;
+                        }
+                    }
+                }
+                else {
+                    description = interval === 1 ?
+                        t('weekly') :
+                        `${t('every')} ${interval} ${t('weeks')}`;
+                }
+                break;
+            case recurrence_type_1.RRuleFrequency.MONTHLY:
+                if ((byWeekDay === null || byWeekDay === void 0 ? void 0 : byWeekDay.length) && bySetPos) {
+                    const pos = getOrdinalPosition(bySetPos);
+                    const dayName = formatDayName(byWeekDay[0]);
+                    if (interval === 1) {
+                        description = lang === 'en' ?
+                            `${t('every')} ${pos} ${dayName} ${t('of')} ${t('the')} ${t('month')}` :
+                            `${t('every')} ${pos} ${dayName} ${t('of')} ${t('month')}`;
+                    }
+                    else {
+                        description = lang === 'en' ?
+                            `${t('every')} ${interval} ${t('months')} ${t('on')} ${t('the')} ${pos} ${dayName}` :
+                            `${t('every')} ${interval} ${t('months')} ${t('on')} ${pos} ${dayName}`;
+                    }
+                }
+                else if (byMonthDay) {
+                    const dayFormatted = formatMonthDay(byMonthDay);
+                    if (interval === 1) {
+                        description = lang === 'en' ?
+                            `${t('every')} ${dayFormatted} ${t('of')} ${t('the')} ${t('month')}` :
+                            `${t('every')} ${t('day')} ${dayFormatted} ${t('of')} ${t('month')}`;
+                    }
+                    else {
+                        description = lang === 'en' ?
+                            `${t('every')} ${interval} ${t('months')} ${t('on')} ${t('the')} ${dayFormatted}` :
+                            `${t('every')} ${interval} ${t('months')} ${t('on')} ${t('day')} ${dayFormatted}`;
+                    }
+                }
+                else {
+                    description = interval === 1 ?
+                        t('monthly') :
+                        `${t('every')} ${interval} ${t('months')}`;
+                }
+                break;
+            case recurrence_type_1.RRuleFrequency.YEARLY:
+                description = interval === 1 ?
+                    t('yearly') :
+                    `${t('every')} ${interval} ${t('years')}`;
+                break;
+        }
+        // Add count or until clause
+        if (count) {
+            description += lang === 'en' ?
+                `, ${count} ${t('times')}` :
+                `, ${count} ${t('times')}`;
+        }
+        else if (until) {
+            const untilDate = new Date(until);
+            const monthNames = lang === 'en' ?
+                ['January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'] :
+                ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+            const monthName = monthNames[untilDate.getMonth()];
+            const year = untilDate.getFullYear();
+            description += ` ${t('until')} ${monthName}, ${year}`;
+        }
+        return description;
+    }
+    static getWeekdayNumber(weekday) {
+        return this.WEEKDAY_MAP[weekday];
+    }
+    static addDays(date, days) {
+        const result = new Date(date);
+        result.setDate(result.getDate() + days);
+        return result;
+    }
+    static addWeeks(date, weeks) {
+        return this.addDays(date, weeks * 7);
+    }
+    static addMonths(date, months) {
+        const result = new Date(date);
+        result.setMonth(result.getMonth() + months);
+        return result;
+    }
+    static addYears(date, years) {
+        const result = new Date(date);
+        result.setFullYear(result.getFullYear() + years);
+        return result;
+    }
+    static getNthWeekdayOfMonth(year, month, weekday, nth) {
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const targetWeekday = this.getWeekdayNumber(weekday);
+        if (nth > 0) {
+            // Find nth occurrence from start
+            let count = 0;
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                const current = new Date(year, month, day);
+                if (current.getDay() === targetWeekday) {
+                    count++;
+                    if (count === nth)
+                        return current;
+                }
+            }
+        }
+        else {
+            // Find nth occurrence from end (nth is negative)
+            const occurrences = [];
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                const current = new Date(year, month, day);
+                if (current.getDay() === targetWeekday) {
+                    occurrences.push(current);
+                }
+            }
+            const index = occurrences.length + nth; // nth is negative
+            return index >= 0 ? occurrences[index] : null;
+        }
+        return null;
+    }
+    // =================== MAIN GENERATOR FUNCTION ===================
+    static generateOccurrences(startDate, rrule, maxCount, endDate) {
+        var _a, _b;
+        const parsed = this.stringToRRule(rrule);
+        if (!parsed.interval)
+            parsed.interval = 1;
+        const occurrences = [];
+        let current = new Date(startDate);
+        let count = 0;
+        let isFirst = true;
+        let eof = false;
+        // Determine actual limit
+        const limit = Math.min(maxCount || parsed.count || 100, // Default max 100 to prevent infinite loops
+        parsed.count || Infinity);
+        // Determine actual end date
+        const actualEndDate = endDate && parsed.until
+            ? new Date(Math.min(endDate.getTime(), parsed.until.getTime()))
+            : endDate || parsed.until;
+        while (count < limit && (!actualEndDate || current <= actualEndDate)) {
+            let nextOccurrence = null;
+            switch (parsed.frequency) {
+                case recurrence_type_1.RRuleFrequency.DAILY:
+                    nextOccurrence = count === 0 ? new Date(current) : this.addDays(current, parsed.interval);
+                    if (actualEndDate && nextOccurrence > actualEndDate)
+                        eof = true;
+                    break;
+                case recurrence_type_1.RRuleFrequency.WEEKLY:
+                    if ((_a = parsed.byWeekDay) === null || _a === void 0 ? void 0 : _a.length) {
+                        // Se repite varios días a la semana
+                        nextOccurrence = this.getNextWeeklyOccurrence(current, parsed.byWeekDay, parsed.interval, count == 0);
+                    }
+                    else {
+                        // Se repite un solo día de la semana
+                        nextOccurrence =
+                            count === 0 ? new Date(current) : this.addWeeks(current, parsed.interval);
+                    }
+                    break;
+                case recurrence_type_1.RRuleFrequency.MONTHLY:
+                    if (((_b = parsed.byWeekDay) === null || _b === void 0 ? void 0 : _b.length) && parsed.bySetPos) {
+                        // e.g., "First Friday of every month"
+                        nextOccurrence = this.getNextMonthlyWeekdayOccurrence(current, parsed.byWeekDay[0], parsed.bySetPos, parsed.interval, count === 0);
+                    }
+                    else if (parsed.byMonthDay) {
+                        // e.g., "15th of every month"
+                        nextOccurrence = this.getNextMonthlyDayOccurrence(current, parsed.byMonthDay, parsed.interval, count === 0);
+                    }
+                    else {
+                        // Same day of month as start date
+                        nextOccurrence =
+                            count === 0 ? new Date(current) : this.addMonths(current, parsed.interval);
+                    }
+                    if (actualEndDate && nextOccurrence && (nextOccurrence > actualEndDate))
+                        eof = true; // PATCH para arreglar el UNTIL del monthly (Puede que funcione para todos los casos)
+                    break;
+                case recurrence_type_1.RRuleFrequency.YEARLY:
+                    nextOccurrence =
+                        count === 0 ? new Date(current) : this.addYears(current, parsed.interval);
+                    break;
+            }
+            if (!nextOccurrence)
+                break;
+            // Skip if before start date (can happen with complex patterns)
+            if (nextOccurrence < startDate) {
+                current = nextOccurrence;
+                continue;
+            }
+            if (!eof)
+                occurrences.push(new Date(nextOccurrence));
+            current = nextOccurrence;
+            if (count == 0)
+                isFirst = false;
+            count++;
+        }
+        return occurrences;
+    }
+    static getNextWeeklyOccurrence(current, weekdays, interval, isFirst) {
+        if (isFirst) {
+            const currentWeekday = current.getDay();
+            const sortedWeekdays = weekdays // e.g. [ 1, 5 ] // (lunes y viernes)
+                .map((wd) => this.getWeekdayNumber(wd))
+                .sort((a, b) => a - b);
+            for (const targetWeekday of sortedWeekdays) {
+                const daysToAdd = (targetWeekday - currentWeekday + 7) % 7;
+                return this.addDays(current, daysToAdd);
+            }
+            // All matched today — go to next interval
+            const nextWeek = this.addWeeks(current, interval);
+            const daysToFirstWeekday = (sortedWeekdays[0] - nextWeek.getDay() + 7) % 7;
+            return this.addDays(nextWeek, daysToFirstWeekday);
+        }
+        // Find next occurrence
+        const sortedWeekdays = weekdays.map((wd) => this.getWeekdayNumber(wd)).sort((a, b) => a - b);
+        const currentWeekday = current.getDay();
+        let daysToAdd = 0;
+        // Try to find next weekday in current week
+        for (const targetWeekday of sortedWeekdays) {
+            daysToAdd = targetWeekday - currentWeekday;
+            if (targetWeekday > currentWeekday || (isFirst && targetWeekday >= currentWeekday)) {
+                daysToAdd = targetWeekday - currentWeekday;
+                return this.addDays(current, daysToAdd);
+            }
+        }
+        // Cómo me costó arreglar esto che
+        const weeksToAdd = interval - (isFirst ? 0 : weekdays.length == 1 && daysToAdd == 0 ? 0 : 1);
+        const nextWeek = this.addWeeks(current, weeksToAdd);
+        const daysToFirstWeekday = sortedWeekdays[0] - nextWeek.getDay();
+        return this.addDays(nextWeek, daysToFirstWeekday >= 0 ? daysToFirstWeekday : daysToFirstWeekday + 7);
+    }
+    static getNextMonthlyWeekdayOccurrence(current, weekday, setPos, interval, isFirst) {
+        let targetMonth = isFirst ? current.getMonth() : current.getMonth() + interval;
+        let targetYear = current.getFullYear();
+        // Handle year overflow
+        while (targetMonth >= 12) {
+            targetMonth -= 12;
+            targetYear++;
+        }
+        return this.getNthWeekdayOfMonth(targetYear, targetMonth, weekday, setPos);
+    }
+    static getNextMonthlyDayOccurrence(current, monthDay, interval, isFirst) {
+        if (isFirst && current.getDate() === monthDay) {
+            return new Date(current);
+        }
+        const targetDate = isFirst ? new Date(current) : this.addMonths(current, interval);
+        targetDate.setDate(monthDay);
+        // Handle invalid dates (e.g., Feb 31 -> Feb 28/29)
+        if (targetDate.getDate() !== monthDay) {
+            targetDate.setDate(0); // Last day of previous month
+        }
+        return targetDate;
+    }
+}
+exports.RRuleParser = RRuleParser;
+RRuleParser.WEEKDAY_MAP = {
+    [recurrence_type_1.WeekDay.SU]: 0,
+    [recurrence_type_1.WeekDay.MO]: 1,
+    [recurrence_type_1.WeekDay.TU]: 2,
+    [recurrence_type_1.WeekDay.WE]: 3,
+    [recurrence_type_1.WeekDay.TH]: 4,
+    [recurrence_type_1.WeekDay.FR]: 5,
+    [recurrence_type_1.WeekDay.SA]: 6,
+};
+// =================== CONVENIENCE FUNCTIONS ===================
+/**
+ * Generate occurrence dates from a recurrence pattern
+ * @param fromDate Starting date
+ * @param rrule RFC 5545 recurrence rule string
+ * @param count Optional maximum number of occurrences
+ * @param toDate Optional end date
+ * @returns Array of Date objects
+ */
+function generateRecurrenceOccurrences(fromDate, rrule, count, toDate) {
+    const startDate = typeof fromDate === 'string' ? new Date(fromDate) : fromDate;
+    const endDate = typeof toDate === 'string' ? new Date(toDate) : toDate;
+    return RRuleParser.generateOccurrences(startDate, rrule, count, endDate);
+}
+/**
+ * Generate occurrence dates as ISO strings
+ * @param fromDate Starting date
+ * @param rrule RFC 5545 recurrence rule string
+ * @param count Optional maximum number of occurrences
+ * @param toDate Optional end date
+ * @returns Array of ISO date strings (YYYY-MM-DD format)
+ */
+function generateRecurrenceDates(fromDate, rrule, count, toDate) {
+    return generateRecurrenceOccurrences(fromDate, rrule, count, toDate).map((date) => date.toISOString().split('T')[0]);
+}
+/**
+ * Get the next N occurrences from today
+ */
+function getUpcomingOccurrences(rrule, count = 5, startDate = new Date()) {
+    return generateRecurrenceOccurrences(startDate, rrule, count);
+}
+/**
+ * Check if a date matches a recurrence pattern
+ */
+function dateMatchesPattern(date, startDate, rrule) {
+    const targetDate = typeof date === 'string' ? new Date(date) : date;
+    const occurrences = generateRecurrenceOccurrences(startDate, rrule, 100);
+    return occurrences.some((occurrence) => occurrence.toDateString() === targetDate.toDateString());
+}
+/**
+ * Get human-readable description of recurrence pattern
+ */
+function describeRRule(rrule) {
+    const parsed = RRuleParser.stringToRRule(rrule);
+    return RRuleParser.describe(parsed);
+}
+/**
+ * Validate RRULE string
+ */
+function isValidRRule(rrule) {
+    try {
+        RRuleParser.stringToRRule(rrule);
+        return true;
+    }
+    catch (_a) {
+        return false;
+    }
+}
