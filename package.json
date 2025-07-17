@@ -1,6 +1,6 @@
 {
   "name": "@byalvear/rrule-fns",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A lightweight recurrence rule parser and generator for JavaScript/TypeScript",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -29,7 +29,14 @@
     "prepublishOnly": "npm run clean && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["rrule", "recurrence", "date", "typescript", "nextjs", "nestjs"],
+  "keywords": [
+    "rrule",
+    "recurrence",
+    "date",
+    "typescript",
+    "nextjs",
+    "nestjs"
+  ],
   "author": "rckmanuel@byalvear.com",
   "license": "ISC",
   "directories": {
