@@ -1,20 +1,37 @@
 {
   "name": "@byalvear/rrule-fns",
-  "version": "1.0.1",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "version": "1.0.3",
+  "description": "A lightweight recurrence rule parser and generator for JavaScript/TypeScript",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      },
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      }
+    }
+  },
   "files": [
     "dist",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["rrule", "recurrence", "date", "typescript"],
+  "keywords": ["rrule", "recurrence", "date", "typescript", "nextjs", "nestjs"],
   "author": "rckmanuel@byalvear.com",
   "license": "ISC",
-  "description": "A lightweight recurrence rule parser and generator for JavaScript/TypeScript",
   "directories": {
     "src": "src"
   },
@@ -23,5 +40,13 @@
   },
   "dependencies": {
     "class-validator": "^0.14.2"
+  },
+  "peerDependencies": {
+    "reflect-metadata": "^0.1.13 || ^0.2.0"
+  },
+  "peerDependenciesMeta": {
+    "reflect-metadata": {
+      "optional": true
+    }
   }
 }

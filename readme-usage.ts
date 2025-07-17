@@ -1,14 +1,14 @@
 // =================== USAGE EXAMPLES ===================
 // tsx path/to/this/file/readme-usage.ts
 
-import { RRule, RRuleFrequency, WeekDay } from './lib/recurrence.type';
+import { RRule, RRuleFrequency, WeekDay } from './src/recurrence.type';
 import {
     RRuleParser,
     generateRecurrenceDates,
     dateMatchesPattern,
     describeRRule,
     isValidRRule,
-} from './lib/recurrence.utils';
+} from './src/recurrence.utils';
 
 const recurrencia: RRule = {
     frequency: RRuleFrequency.WEEKLY,
