@@ -467,6 +467,10 @@ export class RRuleParser {
 
       // Skip if before start date (can happen with complex patterns)
       if (nextOccurrence < startDate) {
+        // 🚨 Infinite loop safeguard
+        if (nextOccurrence.getTime() <= current.getTime()) {
+            break;
+        }
         current = nextOccurrence;
         continue;
       }
